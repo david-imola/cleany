@@ -1,0 +1,32 @@
+    def display_tasks(self):
+        self.room_tasks_layout.clear_widgets()
+        self.indefinite_tasks_layout.clear_widgets()
+        now = datetime.now().date()
+        
+        self.assigned_tasks.sort(key=lambda x: x['due_date'])
+        while len(self.assigned_tasks) < 4:
+            for room, details in self.data['rooms'].items():
+                users = details['users']
+                for task, info in details['tasks'].items():
+                    period = self.parse_period(info['period'])
+                    start_date = datetime.strptime(info['start-date'], "%Y-%m-%d").date()
+                    cycle_pos = (now - start_date).days // period.days % len(users)
+                    assigned_user = users[cycle_pos]
+                    due_date = start_date + period * ((now - start_date).days // period.days + 1)
+                    if {'user': assigned_user, 'room': room, 'task': task, 'due_date': due_date} not in self.assigned_tasks:
+                        self.assigned_tasks.append({'user': assigned_user, 'room': room, 'task': task, 'due_date': due_date})
+                    if len(self.assigned_tasks) >= 4:
+                        break
+                if len(self.assigned_tasks) >= 4:
+                    break
+        
+        for task in self.assigned_tasks[:4]:
+            color = (1, 0, 0, 1) if task['due_date'] < now else (1, 1, 0, 1) if task['due_date'] == now else (0, 1, 0, 1)
+            btn = Button(text=f"{task['task']}\n{task['user']}\n{task['room']}\nDue: {task['due_date']}", background_color=color)
+            btn.bind(on_press=lambda instance, t=task: self.complete_task(t, instance))
+            self.room_tasks_layout.add_widget(btn)
+        
+        for task in self.indefinite_tasks:
+            btn = Button(text=f"{task['task']}\n{task['user']}\n{task['rep']}/{task['total_reps']}")
+            btn.bind(on_press=lambda instance, t=task: self.next_indefinite_task(t, instance))
+            self.indefinite_tasks_layout.add_widget(btn)

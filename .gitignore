@@ -1,0 +1,5 @@
+venv/
+.buildozer/
+__pycache__/
+tasks.yaml
+bin/
