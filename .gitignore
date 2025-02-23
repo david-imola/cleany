@@ -3,3 +3,4 @@ venv/
 __pycache__/
 tasks.yaml
 bin/
+*.json
