@@ -16,6 +16,10 @@ Run
 ./app.sh install
 ```
 
+### Configure
+
+After running the above install command, a new file called `tasks.yaml` will be created. Modify this file according to your needs.
+
 ### Run the app
 
 ```

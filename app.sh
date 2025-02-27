@@ -9,6 +9,7 @@ case "$COMMAND" in
     python -m venv venv/
     source venv/bin/activate
     pip install -r requirements.txt
+    cp -n tasks.sample.yaml tasks.yaml
     ;;
   venv)
     source venv/bin/activate

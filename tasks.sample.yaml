@@ -1,0 +1,50 @@
+rooms:
+  east_bathroom:
+    users: [marlin, doris]
+    tasks:
+      clean_sink: 1w # syntax for duration: integer followed by d (for days), w (for weeks), m (for months)
+      clean_floor: 2w # Every 2 weeks
+      clean_mirror: 2w
+      dust: 2w
+      organize: 3w
+      launder_towels: 1m # Once a month
+
+  west_bathroom:
+    users: [alex, ryan]
+    tasks:
+      clean_sink: 1w
+      clean_floor: 2w
+      clean_mirror: 2w
+      dust: 2w
+      organize: 3w
+      launder_towels: 1m
+
+  kitchen:
+    users: [marlin, doris, ryan, alex]
+    tasks:
+      clean_counters: 3d # Once every 3 days
+      sweep_floor_and_clear_chairs: 4d
+      clean_sink: 4d
+      mop_floor: 2w
+      launder_towels: 2w
+      clean_fridge: 2w
+      organize_and_clean_cupboards: 3w
+      dust: 3w
+      organize_kitchenware: 1m
+
+  hallway:
+    users: [marlin, doris, ryan, alex]
+    tasks:
+      sweep_floor: 1w
+
+
+indefinite_tasks:
+  trash:
+      users: [marlin, doris, ryan, alex]
+      repititions: 3
+
+
+# for weather updates
+location:
+  lat: 38.736946 # latitute
+  lon: -9.142685 # longitude
