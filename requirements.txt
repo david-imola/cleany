@@ -1,6 +1,6 @@
-"kivy[base]"
+kivy[base]
 buildozer>=1.5.0
 setuptools>=75.8.0
 cython>=3.0.12
-pyyaml=6.0.2
+pyyaml>=6.0.2
 pylint>=3.3.4
