@@ -14,6 +14,7 @@ from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 
 from . import weather, tasks, schema
 
@@ -168,16 +169,49 @@ class _TaskManager(BoxLayout):
             f"Task: {task.name}\nWho: {task.user}\nWhere: {task.room}\nDue Date: {task.due_date}",
             background_color=color)
             # pylint: disable=no-member
-            btn.bind(on_press=lambda _, t=task: self._complete_task(t))
+            btn.bind(on_press=lambda _, t=task: self._show_confirmation_dialog(t, False))
             self.room_tasks_layout.add_widget(btn)
 
         # Display Indefinete tasks
         for task in self.indefinite_tasks:
             btn = Button(text=f"{task.name}\n{task.user}\n{task.rep}/{task.total_reps}")
             # pylint: disable=no-member
-            btn.bind(on_press=lambda instance,
-            task_name=task.name: self._complete_indefinite_task(task_name, instance))
+            btn.bind(on_press=lambda instance, t=task: self._show_confirmation_dialog(t, True, instance))
             self.indefinite_tasks_layout.add_widget(btn)
+
+
+    
+    def _show_confirmation_dialog(self, task, indefinite, instance=None):
+        # Create the popup content
+        content = BoxLayout(orientation='vertical')
+        txt = f"{task.user}, are you sure you want to complete this task?\n\n{task.name}"
+        if not indefinite:
+            txt = txt + f" in {task.room}"
+        content.add_widget(Label(text=txt))
+
+        # Define the buttons for the dialog
+        cancel_button = Button(text="Cancel", on_press=lambda _: self.popup.dismiss())
+
+        def complete_task(_):
+            if indefinite:
+                self._complete_indefinite_task(task.name, instance)
+            else:
+                self._complete_task(task)
+            self.popup.dismiss()
+        confirm_button = Button(text="Confirm", on_press=complete_task)
+
+        # Add buttons to the content layout
+        content.add_widget(cancel_button)
+        content.add_widget(confirm_button)
+
+        # Create the popup
+        self.popup = Popup(title="Confirm Task Completion",
+                           content=content,
+                           size_hint=(0.7, 0.5),
+                           auto_dismiss=False)
+
+        # Open the popup
+        self.popup.open()
 
     def _complete_task(self, task):
         self.assigned_tasks.remove(task)
