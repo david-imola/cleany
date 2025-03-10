@@ -4,3 +4,4 @@ setuptools>=75.8.0
 cython>=3.0.12
 pyyaml>=6.0.2
 pylint>=3.3.4
+fastjsonschema>=2.21.1

@@ -1,0 +1,47 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "rooms": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "users": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "tasks": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          },
+          "required": ["users", "tasks"]
+        }
+      },
+      "indefinite_tasks": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "users": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "repetitions": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["users", "repetitions"]
+        }
+      },
+      "location": {
+        "type": "object",
+        "properties": {
+          "lat": { "type": "number" },
+          "lon": { "type": "number" }
+        },
+        "required": ["lat", "lon"]
+      }
+    },
+    "required": ["rooms", "indefinite_tasks", "location"]
+  }
+  

@@ -16,7 +16,10 @@ case "$COMMAND" in
     unset COMMAND
     ;;
   run)
-    python main.py
+    python main.py run
+    ;;
+  validate)
+    python main.py validate
     ;;
   lint)
     pylint cleany/ main.py

@@ -41,7 +41,7 @@ rooms:
 indefinite_tasks:
   trash:
       users: [marlin, doris, ryan, alex]
-      repititions: 3
+      repetitions: 3
 
 
 # for weather updates

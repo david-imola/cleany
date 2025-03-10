@@ -15,10 +15,10 @@ package.domain = com.github.davidimola
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,json
 
 # (list) List of inclusions using pattern matching
-#source.include_patterns = assets/*,images/*.png
+# source.include_patterns = schema.json
 
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec,json,yaml
@@ -28,7 +28,7 @@ source.exclude_dirs = bin,venv,.buildozer
 
 # (list) List of exclusions using pattern matching
 # Do not prefix with './'
-source.exclude_patterns = __pycache__,requirements.txt,.gitignore
+source.exclude_patterns = __pycache__,requirements.txt,.gitignore,it.json,rooms.json
 
 # (str) Application versioning (method 1)
 version = 0.1
@@ -39,7 +39,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,kivymd,pyyaml
+requirements = python3,kivy,kivymd,pyyaml,fastjsonschema
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes

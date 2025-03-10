@@ -15,8 +15,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 
-from . import weather
-from . import tasks
+from . import weather, tasks, schema
 
 kivy.require('2.1.0')
 
@@ -25,6 +24,7 @@ WRITE_DIR_ANDROID = "/sdcard/"
 ROOMS_FILENAME = "rooms.json"
 IT_FILENAME = "it.json"
 TASKS_FILENAME = "tasks.yaml"
+SCHEMA_FILENAME = "schema.json"
 DATE_FMT = "%m/%d\n%H:%M"
 
 
@@ -108,6 +108,9 @@ class _TaskManager(BoxLayout):
         with open(tasks_path, "r", encoding="utf-8") as file:
             self.data = yaml.safe_load(file)
 
+        # Validate against our schema
+        schema.validate_yaml(self.data, SCHEMA_FILENAME)
+
     def _assign_task(self, room_name, task_name, current_user):
 
         # Get data that was loaded from yaml file
@@ -148,7 +151,7 @@ class _TaskManager(BoxLayout):
         if len(self.indefinite_tasks) == 0:
             for task, details in self.data['indefinite_tasks'].items():
                 user0 = details['users'][0]
-                reps = details['repititions']
+                reps = details['repetitions']
                 bisect.insort(self.indefinite_tasks, tasks.new_indefinite_task(user0, task, reps))
 
     def _display_tasks(self, _=None):
@@ -184,7 +187,7 @@ class _TaskManager(BoxLayout):
     def _complete_indefinite_task(self, task_name, instance):
         i, task = self.indefinite_tasks.increment(task_name)
 
-        # If user has finished the required number of repititions, reset reps back to 1
+        # If user has finished the required number of repetitions, reset reps back to 1
         # And go to the next user
         if task.rep > task.total_reps:
             users = self.data['indefinite_tasks'][task.name]['users']

@@ -4,3 +4,4 @@ __pycache__/
 tasks.yaml
 bin/
 *.json
+!schema.json
