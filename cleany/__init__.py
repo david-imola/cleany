@@ -25,6 +25,7 @@ WRITE_DIR_ANDROID = "/sdcard/"
 ROOMS_FILENAME = "rooms.json"
 IT_FILENAME = "it.json"
 TASKS_FILENAME = "tasks.yaml"
+DATE_FMT = "%m/%d\n%H:%M"
 
 
 def _get_filepath(filename):
@@ -65,7 +66,7 @@ class _TaskManager(BoxLayout):
         layout = BoxLayout(orientation='horizontal', size_hint=(1, .9))
         self.room_tasks_layout = BoxLayout(orientation='vertical')
         right_section = BoxLayout(orientation='vertical')
-        self.datetime_label = Label(text=str(datetime.now().strftime("%m/%d\n%H:%M")),
+        self.datetime_label = Label(text=str(datetime.now().strftime(DATE_FMT)),
                                     font_size='96sp')
         self.indefinite_tasks_layout = BoxLayout(orientation='vertical')
 
@@ -92,7 +93,7 @@ class _TaskManager(BoxLayout):
         self._update_weather(0)  # Initial weather fetch
 
     def _update_datetime(self, _):
-        self.datetime_label.text = str(datetime.now().strftime("%m/%d\n%H:%M"))
+        self.datetime_label.text = str(datetime.now().strftime(DATE_FMT))
 
     def _update_weather(self, _):
         try:
