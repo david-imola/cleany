@@ -14,6 +14,7 @@ class _Task:
         self.room = ""
         self.name = ""
         self.due_date = datetime.utcfromtimestamp(0).date()
+        self.period = ""
         if dict1:
             self.__dict__.update(dict1)
             self.due_date = datetime.strptime(self.due_date,'%Y-%m-%d').date()
@@ -22,7 +23,7 @@ class _Task:
         return self.due_date < other.due_date
 
 
-def new_task(user, room, name, due_date):
+def new_task(user, room, name, due_date, period):
     """
     Create a new task
 
@@ -30,12 +31,14 @@ def new_task(user, room, name, due_date):
     :param str room: The room this task is associated with.
     :param str name: The name of the task
     :param datetime.date due_date: When the task is due
+    :param str period: The period of the task
     """
     task = _Task()
     task.user = user
     task.room = room
     task.name = name
     task.due_date = due_date
+    task.period = period
     return task
 
 

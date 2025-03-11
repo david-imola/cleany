@@ -13,8 +13,25 @@
             },
             "tasks": {
               "type": "object",
-              "additionalProperties": { "type": "string" }
+              "additionalProperties": {
+                "oneOf": [
+                  {"type": "string"},
+                  {
+                    "type": "object",
+                    "properties": {
+                      "users": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                      },
+                      "period": {"type": "string"},
+                      "stagger": {"type": "string"}
+                    },
+                    "required": ["period"],
+                    "additionalProperties": false
+                  }
+                ]
             }
+          }
           },
           "required": ["users", "tasks"]
         }

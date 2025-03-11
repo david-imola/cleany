@@ -60,6 +60,9 @@ def _parse_period(period):
 
 class _TaskManager(BoxLayout):
 
+    # pylint: disable=too-many-instance-attributes
+    # More than 7 is fine in this case
+
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', **kwargs)
 
@@ -79,6 +82,9 @@ class _TaskManager(BoxLayout):
 
         # Bottom label
         self.weather_label = Label(text="Fetching weather...", size_hint=(1, .1))
+
+        # Define popup now for linter
+        self.popup = None
 
         # Add top layout and bottom label to the parent layout
         self.add_widget(layout)
@@ -114,11 +120,17 @@ class _TaskManager(BoxLayout):
 
     def _assign_task(self, room_name, task_name, current_user):
 
-        # Get data that was loaded from yaml file
+        # Get data that was loaded from the yaml file
         room = self.data['rooms'][room_name]
-        users = room['users']
+        task_obj = room['tasks'][task_name]
+        # true if the yaml contents of the task is just the period
+        is_simple = isinstance(task_obj, str)
 
         # Find the new user
+        users = room['users']
+        if not is_simple:
+            if "users" in task_obj:
+                users = task_obj["users"]
         pos = users.index(current_user)
         pos = pos + 1
         if pos >= len(users):
@@ -126,11 +138,20 @@ class _TaskManager(BoxLayout):
         new_user = users[pos]
 
         # Find the new due date
-        period = _parse_period(room['tasks'][task_name])
+        if is_simple:
+            period_str = task_obj
+            period = _parse_period(period_str)
+        else:
+            period_str = task_obj["period"]
+            period = _parse_period(period_str)
+            if "stagger" in task_obj:
+                stagger = _parse_period(task_obj["stagger"])
+                period = period + stagger
         due_date = (datetime.now() + period).date()
 
         # Insert so list remains sorted
-        bisect.insort(self.assigned_tasks, tasks.new_task(new_user, room_name, task_name, due_date))
+        bisect.insort(self.assigned_tasks,
+                      tasks.new_task(new_user, room_name, task_name, due_date, period_str))
         return new_user
 
     def _initiate_tasks(self):
@@ -143,9 +164,16 @@ class _TaskManager(BoxLayout):
         self.assigned_tasks = tasks.Tasks(rooms_path)
         if len(self.assigned_tasks) == 0:
             for room, details in self.data['rooms'].items():
-                user = details['users'][0]
-                for task in details['tasks']:
-                    user = self._assign_task(room, task, user)
+                # find last user because _assign_tasks assigns to the next user, and we want
+                # to start on the first user
+                user = details['users'][-1]
+                for task_name, task in details['tasks'].items():
+                    if isinstance(task, str) or "users" not in task:
+                        user = self._assign_task(room, task_name, user)
+                    else:
+                        # if the task overrides the user section, ignore the rolling user assignment
+                        # and just assign the first user
+                        self._assign_task(room, task_name, task["users"][0])
 
         # Initiate Indefinite tasks
         self.indefinite_tasks = tasks.IndefiniteTasks(it_path)
@@ -166,7 +194,8 @@ class _TaskManager(BoxLayout):
             color = _queued_color(due_date)
             btn = Button(
             text=
-            f"Task: {task.name}\nWho: {task.user}\nWhere: {task.room}\nDue Date: {task.due_date}",
+            f"Task: {task.name}\nWho: {task.user}\nWhere: {task.room}"
+            f"\nDue Date: {task.due_date} ({task.period})",
             background_color=color)
             # pylint: disable=no-member
             btn.bind(on_press=lambda _, t=task: self._show_confirmation_dialog(t, False))
@@ -176,15 +205,16 @@ class _TaskManager(BoxLayout):
         for task in self.indefinite_tasks:
             btn = Button(text=f"{task.name}\n{task.user}\n{task.rep}/{task.total_reps}")
             # pylint: disable=no-member
-            btn.bind(on_press=lambda instance, t=task: self._show_confirmation_dialog(t, True, instance))
+            btn.bind(on_press=lambda instance,
+                     t=task: self._show_confirmation_dialog(t, True, instance))
             self.indefinite_tasks_layout.add_widget(btn)
 
 
-    
+
     def _show_confirmation_dialog(self, task, indefinite, instance=None):
         # Create the popup content
         content = BoxLayout(orientation='vertical')
-        txt = f"{task.user}, are you sure you want to complete this task?\n\n{task.name}"
+        txt = f"{task.user}, are you sure you have completed this task?\n\n{task.name}"
         if not indefinite:
             txt = txt + f" in {task.room}"
         content.add_widget(Label(text=txt))
