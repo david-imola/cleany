@@ -118,7 +118,7 @@ class _TaskManager(BoxLayout):
         # Validate against our schema
         schema.validate_yaml(self.data, SCHEMA_FILENAME)
 
-    def _assign_task(self, room_name, task_name, current_user):
+    def _assign_task(self, room_name, task_name, current_user, init):
 
         # Get data that was loaded from the yaml file
         room = self.data['rooms'][room_name]
@@ -144,7 +144,7 @@ class _TaskManager(BoxLayout):
         else:
             period_str = task_obj["period"]
             period = _parse_period(period_str)
-            if "stagger" in task_obj:
+            if "stagger" in task_obj and init:
                 stagger = _parse_period(task_obj["stagger"])
                 period = period + stagger
         due_date = (datetime.now() + period).date()
@@ -169,11 +169,11 @@ class _TaskManager(BoxLayout):
                 user = details['users'][-1]
                 for task_name, task in details['tasks'].items():
                     if isinstance(task, str) or "users" not in task:
-                        user = self._assign_task(room, task_name, user)
+                        user = self._assign_task(room, task_name, user, True)
                     else:
                         # if the task overrides the user section, ignore the rolling user assignment
                         # and just assign the first user
-                        self._assign_task(room, task_name, task["users"][0])
+                        self._assign_task(room, task_name, task["users"][0], True)
 
         # Initiate Indefinite tasks
         self.indefinite_tasks = tasks.IndefiniteTasks(it_path)
@@ -245,7 +245,7 @@ class _TaskManager(BoxLayout):
 
     def _complete_task(self, task):
         self.assigned_tasks.remove(task)
-        self._assign_task(task.room, task.name, task.user)
+        self._assign_task(task.room, task.name, task.user, False)
         self._display_tasks()
 
     def _complete_indefinite_task(self, task_name, instance):
