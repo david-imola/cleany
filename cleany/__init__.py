@@ -26,7 +26,7 @@ ROOMS_FILENAME = "rooms.json"
 IT_FILENAME = "it.json"
 TASKS_FILENAME = "tasks.yaml"
 SCHEMA_FILENAME = "schema.json"
-DATE_FMT = "%m/%d\n%H:%M"
+DATE_FMT = "%d/%m\n%H:%M"
 
 
 def _get_filepath(filename):
