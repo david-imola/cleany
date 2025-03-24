@@ -118,7 +118,7 @@ class _TaskManager(BoxLayout):
         # Validate against our schema
         schema.validate_yaml(self.data, SCHEMA_FILENAME)
 
-    def _assign_task(self, room_name, task_name, current_user, init):
+    def _assign_task(self, room_name, task_name, current_user, init, advance_user):
 
         # Get data that was loaded from the yaml file
         room = self.data['rooms'][room_name]
@@ -127,15 +127,18 @@ class _TaskManager(BoxLayout):
         is_simple = isinstance(task_obj, str)
 
         # Find the new user
-        users = room['users']
-        if not is_simple:
-            if "users" in task_obj:
-                users = task_obj["users"]
-        pos = users.index(current_user)
-        pos = pos + 1
-        if pos >= len(users):
-            pos = 0
-        new_user = users[pos]
+        if advance_user:
+            users = room['users']
+            if not is_simple:
+                if "users" in task_obj:
+                    users = task_obj["users"]
+            pos = users.index(current_user)
+            pos = pos + 1
+            if pos >= len(users):
+                pos = 0
+            new_user = users[pos]
+        else:
+            new_user = current_user
 
         # Find the new due date
         if is_simple:
@@ -169,11 +172,11 @@ class _TaskManager(BoxLayout):
                 user = details['users'][-1]
                 for task_name, task in details['tasks'].items():
                     if isinstance(task, str) or "users" not in task:
-                        user = self._assign_task(room, task_name, user, True)
+                        user = self._assign_task(room, task_name, user, True, True)
                     else:
                         # if the task overrides the user section, ignore the rolling user assignment
                         # and just assign the first user
-                        self._assign_task(room, task_name, task["users"][0], True)
+                        self._assign_task(room, task_name, task["users"][0], True, True)
 
         # Initiate Indefinite tasks
         self.indefinite_tasks = tasks.IndefiniteTasks(it_path)
@@ -234,6 +237,14 @@ class _TaskManager(BoxLayout):
         content.add_widget(cancel_button)
         content.add_widget(confirm_button)
 
+        # Add the non-advance task completion button if not indefinite task
+        if not indefinite:
+            def complete_task_persist_user(_):
+                self._complete_task(task, advance_user=False)
+                self.popup.dismiss()
+            persist_user_button = Button(text="Complete task, but don't advance user", on_press=complete_task_persist_user)
+            content.add_widget(persist_user_button)
+
         # Create the popup
         self.popup = Popup(title="Confirm Task Completion",
                            content=content,
@@ -243,9 +254,9 @@ class _TaskManager(BoxLayout):
         # Open the popup
         self.popup.open()
 
-    def _complete_task(self, task):
+    def _complete_task(self, task, advance_user=True):
         self.assigned_tasks.remove(task)
-        self._assign_task(task.room, task.name, task.user, False)
+        self._assign_task(task.room, task.name, task.user, False, advance_user)
         self._display_tasks()
 
     def _complete_indefinite_task(self, task_name, instance):
