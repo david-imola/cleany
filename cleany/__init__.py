@@ -12,11 +12,12 @@ import kivy
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 
-from . import weather, tasks, schema
+from . import weather, data, schema
 
 kivy.require('2.1.0')
 
@@ -26,8 +27,9 @@ ROOMS_FILENAME = "rooms.json"
 IT_FILENAME = "it.json"
 TASKS_FILENAME = "tasks.yaml"
 SCHEMA_FILENAME = "schema.json"
-DATE_FMT = "%d/%m\n%H:%M"
-
+USERS_FILENAME = "users.json"
+TIME_FMT = "%H:%M"
+DATE_FMT = "%y-%m-%d"
 
 def _get_filepath(filename):
     if os.path.exists(WRITE_DIR_ANDROID):
@@ -68,13 +70,19 @@ class _TaskManager(BoxLayout):
 
         # Top layout
         layout = BoxLayout(orientation='horizontal', size_hint=(1, .9))
+
+        # Right layout
         self.room_tasks_layout = BoxLayout(orientation='vertical')
         right_section = BoxLayout(orientation='vertical')
-        self.datetime_label = Label(text=str(datetime.now().strftime(DATE_FMT)),
+        self.time_label = Label(text=str(datetime.now().strftime(TIME_FMT)),
                                     font_size='96sp')
+        self.date_label = Label(text=str(datetime.now().strftime(DATE_FMT)),
+                                    font_size='32sp')
+        self.points_layout = GridLayout(cols=2)
         self.indefinite_tasks_layout = BoxLayout(orientation='vertical')
-
-        right_section.add_widget(self.datetime_label)
+        right_section.add_widget(self.time_label)
+        right_section.add_widget(self.date_label)
+        right_section.add_widget(self.points_layout)
         right_section.add_widget(self.indefinite_tasks_layout)
 
         layout.add_widget(self.room_tasks_layout)
@@ -91,6 +99,8 @@ class _TaskManager(BoxLayout):
         self.add_widget(self.weather_label)
 
         self._load_yaml()
+        self._initiate_users()
+        self._display_users()
         self._initiate_tasks()
         self._display_tasks()
 
@@ -100,7 +110,8 @@ class _TaskManager(BoxLayout):
         self._update_weather(0)  # Initial weather fetch
 
     def _update_datetime(self, _):
-        self.datetime_label.text = str(datetime.now().strftime(DATE_FMT))
+        self.time_label.text = str(datetime.now().strftime(TIME_FMT))
+        self.date_label.text = str(datetime.now().strftime(DATE_FMT))
 
     def _update_weather(self, _):
         try:
@@ -165,8 +176,20 @@ class _TaskManager(BoxLayout):
 
         # Insert so list remains sorted
         bisect.insort(self.assigned_tasks,
-                      tasks.new_task(new_user, room_name, task_name, due_date, period_str))
+                      data.new_task(new_user, room_name, task_name, due_date, period_str))
         return new_user
+
+
+    def _initiate_users(self):
+
+        # Get file paths
+        user_path = _get_filepath(USERS_FILENAME)
+
+        # Initate users
+        self.users = data.Users(user_path)
+        if self.users.size() == 0:
+            for user in self.data['users']:
+                self.users.initiate_user(user)
 
     def _initiate_tasks(self):
 
@@ -175,7 +198,7 @@ class _TaskManager(BoxLayout):
         it_path = _get_filepath(IT_FILENAME)
 
         # Initate Assigned Tasks
-        self.assigned_tasks = tasks.Tasks(rooms_path)
+        self.assigned_tasks = data.Tasks(rooms_path)
         if len(self.assigned_tasks) == 0:
             for room, details in self.data['rooms'].items():
                 # find last user because _assign_tasks assigns to the next user, and we want
@@ -190,12 +213,35 @@ class _TaskManager(BoxLayout):
                         self._assign_task(room, task_name, task["users"][0], True, True)
 
         # Initiate Indefinite tasks
-        self.indefinite_tasks = tasks.IndefiniteTasks(it_path)
+        self.indefinite_tasks = data.IndefiniteTasks(it_path)
         if len(self.indefinite_tasks) == 0:
             for task, details in self.data['indefinite_tasks'].items():
                 user0 = details['users'][0]
                 reps = details['repetitions']
-                bisect.insort(self.indefinite_tasks, tasks.new_indefinite_task(user0, task, reps))
+                bisect.insort(self.indefinite_tasks, data.new_indefinite_task(user0, task, reps))
+
+
+
+    def _display_users(self):
+        self.points_layout.clear_widgets()
+
+        headers = ["Name", "Surplus/Deficit Points"]
+
+        # Add header row
+        for header in headers:
+            self.points_layout.add_widget(Label(text=header, bold=True))
+
+        # Add data rows
+        for user, points in self.users.all():
+            if points == 0:
+                color = "white"
+            elif points > 0:
+                color = "green"
+            else:
+                color = "red"
+            self.points_layout.add_widget(Label(text=user))
+            self.points_layout.add_widget(Label(text=f"{points}", color=color))
+
 
     def _display_tasks(self, _=None):
         self.room_tasks_layout.clear_widgets()
@@ -223,6 +269,56 @@ class _TaskManager(BoxLayout):
                      t=task: self._show_confirmation_dialog(t, True, instance))
             self.indefinite_tasks_layout.add_widget(btn)
 
+    def _find_users_for_task(self, task, indefinite):
+        """
+        Given the parsed YAML data, a room name, and a task name,
+        return the list of users assigned to that task.
+        """
+        if indefinite:
+            return self.data['indefinite_tasks'][task.name]['users']
+
+        room = self.data['rooms'][task.room]
+        if not room:
+            return []  # Room not found
+
+        task = room['tasks'][task.name]
+        if not task:
+            return []  # Task not found
+
+        # If users are specified for the task, use those
+        if isinstance(task, dict) and "users" in task:
+            return task["users"]
+
+        # Otherwise, fall back to the users assigned to the room
+        return room["users"]
+
+    def _different_user_dialog(self, task, indefinite):
+        # Create new popup content
+        content = BoxLayout(orientation='vertical')
+        txt = f"Complete task {task.name} as different user:"
+        content.add_widget(Label(text=txt))
+
+        def complete_task_diff_user(user):
+            if indefinite:
+                pass # No need to do anything if indefinete task
+            else:
+                self._complete_task(task, advance_user=False)
+            self._surplus_and_deficit(up=user, down=task.user)
+            self.popup.dismiss()
+
+        for user in self._find_users_for_task(task, indefinite):
+            if user == task.user:
+                continue
+            content.add_widget(Button
+                               (text=user, on_press=lambda _, u=user: complete_task_diff_user(u)))
+        cancel_button = Button(text="Cancel", on_press=lambda _: self.popup.dismiss())
+        content.add_widget(cancel_button)
+
+        self.popup = Popup(title="Complete task as a different user",
+                           content=content, size_hint=(0.7, 0.5),
+                        auto_dismiss=False)
+        self.popup.open()
+
     def _show_confirmation_dialog(self, task, indefinite, instance=None):
         # Create the popup content
         content = BoxLayout(orientation='vertical')
@@ -246,14 +342,15 @@ class _TaskManager(BoxLayout):
         content.add_widget(cancel_button)
         content.add_widget(confirm_button)
 
-        # Add the non-advance task completion button if not indefinite task
-        if not indefinite:
-            def complete_task_persist_user(_):
-                self._complete_task(task, advance_user=False)
-                self.popup.dismiss()
-            persist_user_button = Button(text="Complete task, but don't advance user",
-                                         on_press=complete_task_persist_user)
-            content.add_widget(persist_user_button)
+        # Add the non-advance task completion button
+        def complete_task_persist_user(_):
+            self.popup.dismiss()
+            self._different_user_dialog(task, indefinite)
+
+
+        persist_user_button = Button(text="Complete task as a different user",
+                                     on_press=complete_task_persist_user)
+        content.add_widget(persist_user_button)
 
         # Create the popup
         self.popup = Popup(title="Confirm Task Completion",
@@ -268,6 +365,10 @@ class _TaskManager(BoxLayout):
         self.assigned_tasks.remove(task)
         self._assign_task(task.room, task.name, task.user, False, advance_user)
         self._display_tasks()
+
+    def _surplus_and_deficit(self, up, down):
+        self.users.up_and_down(up, down)
+        self._display_users()
 
     def _complete_indefinite_task(self, task_name, instance):
         i, task = self.indefinite_tasks.increment(task_name)

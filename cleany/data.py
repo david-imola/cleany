@@ -196,3 +196,99 @@ class IndefiniteTasks(list):
         self[index].rep = 1
         self[index].user = new_user
         self._save()
+
+
+
+class _Users(dict):
+    """
+    A dictionary subclass that automatically persists data to a JSON file.
+    Any modification to the dictionary updates the storage, ensuring
+    consistency between in-memory data and disk.
+    """
+    def __init__(self, filename):
+        self.filename = filename
+        super().__init__(self._load())
+
+    def _load(self):
+        """Loads the dictionary from the JSON file."""
+        try:
+            with open(self.filename, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+
+    def _save(self):
+        """Saves the dictionary to the JSON file."""
+        with open(self.filename, "w", encoding="utf-8") as f:
+            json.dump(self, f, indent=4)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self._save()
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self._save()
+
+    def update(self, *args, **kwargs):
+        super().update(*args, **kwargs)
+        self._save()
+
+    def clear(self):
+        super().clear()
+        self._save()
+
+    def pop(self, key, default=None):
+        value = super().pop(key, default)
+        self._save()
+        return value
+
+    def popitem(self):
+        item = super().popitem()
+        self._save()
+        return item
+
+
+class Users():
+    """
+    A class for managing the surplus/deficit points of each user.
+    """
+    def __init__(self, filename):
+        self._users = _Users(filename)
+
+    def up_and_down(self, up, down):
+        """
+        Increment up user's score and decrement down user's score.
+        """
+        if up not in self._users:
+            raise KeyError(f"Up user {up} wasnt found in Users")
+        if down not in self._users:
+            raise KeyError(f"Down user {down} wasnt found in Users")
+        self._users[up] += 1
+        self._users[down] -= 1
+
+    def get_score(self, user):
+        """
+        Get a users score
+        """
+        if user not in self._users:
+            raise KeyError(f"user {user} wasnt found in Users")
+        return self._users[user]
+
+    def initiate_user(self, user):
+        """
+        Add a user to the dictionary and set their score to zero.
+        """
+        self._users[user] = 0
+
+    def size(self):
+        """
+        Returns how many users are saved.
+        """
+        return len(self._users)
+
+    def all(self):
+        """
+        Return all users as keys and values (values being their score)
+        """
+        return self._users.items()

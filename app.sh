@@ -25,7 +25,7 @@ case "$COMMAND" in
     pylint cleany/ main.py
     ;;
   reset)
-    rm it.json rooms.json
+    rm it.json rooms.json users.json
     ;;
   android)
     case "$2" in
@@ -42,7 +42,7 @@ case "$COMMAND" in
         adb push tasks.yaml /sdcard/
         ;;
       reset)
-        adb shell rm /sdcard/rooms.json /sdcard/it.json
+        adb shell rm /sdcard/rooms.json /sdcard/it.json /sdcard/users.json
         ;;
       *)
         echo "Unknown android command: $2"
