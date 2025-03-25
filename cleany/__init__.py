@@ -118,39 +118,50 @@ class _TaskManager(BoxLayout):
         # Validate against our schema
         schema.validate_yaml(self.data, SCHEMA_FILENAME)
 
+    def _get_new_user(self, room_dict, task_dict, current_user):
+        # true if the yaml contents of the task is just the period
+        is_simple = isinstance(task_dict, str)
+        users = room_dict['users']
+        if not is_simple:
+            if "users" in task_dict:
+                users = task_dict["users"]
+        pos = users.index(current_user)
+        pos = pos + 1
+        if pos >= len(users):
+            pos = 0
+        return users[pos]
+
+    def _get_new_duedate(self, task_dict, init):
+        # true if the yaml contents of the task is just the period
+        is_simple = isinstance(task_dict, str)
+        # Find the new due date
+        if is_simple:
+            period_str = task_dict
+            period = _parse_period(period_str)
+        else:
+            period_str = task_dict["period"]
+            period = _parse_period(period_str)
+            if "stagger" in task_dict and init:
+                stagger = _parse_period(task_dict["stagger"])
+                period = period + stagger
+        return period_str, (datetime.now() + period).date()
+
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    # Ehh
     def _assign_task(self, room_name, task_name, current_user, init, advance_user):
 
         # Get data that was loaded from the yaml file
         room = self.data['rooms'][room_name]
         task_obj = room['tasks'][task_name]
-        # true if the yaml contents of the task is just the period
-        is_simple = isinstance(task_obj, str)
 
         # Find the new user
         if advance_user:
-            users = room['users']
-            if not is_simple:
-                if "users" in task_obj:
-                    users = task_obj["users"]
-            pos = users.index(current_user)
-            pos = pos + 1
-            if pos >= len(users):
-                pos = 0
-            new_user = users[pos]
+            new_user = self._get_new_user(room, task_obj, current_user)
         else:
             new_user = current_user
 
-        # Find the new due date
-        if is_simple:
-            period_str = task_obj
-            period = _parse_period(period_str)
-        else:
-            period_str = task_obj["period"]
-            period = _parse_period(period_str)
-            if "stagger" in task_obj and init:
-                stagger = _parse_period(task_obj["stagger"])
-                period = period + stagger
-        due_date = (datetime.now() + period).date()
+        # Find the new due date and the period string
+        period_str, due_date = self._get_new_duedate(task_obj, init)
 
         # Insert so list remains sorted
         bisect.insort(self.assigned_tasks,
@@ -212,8 +223,6 @@ class _TaskManager(BoxLayout):
                      t=task: self._show_confirmation_dialog(t, True, instance))
             self.indefinite_tasks_layout.add_widget(btn)
 
-
-
     def _show_confirmation_dialog(self, task, indefinite, instance=None):
         # Create the popup content
         content = BoxLayout(orientation='vertical')
@@ -242,7 +251,8 @@ class _TaskManager(BoxLayout):
             def complete_task_persist_user(_):
                 self._complete_task(task, advance_user=False)
                 self.popup.dismiss()
-            persist_user_button = Button(text="Complete task, but don't advance user", on_press=complete_task_persist_user)
+            persist_user_button = Button(text="Complete task, but don't advance user",
+                                         on_press=complete_task_persist_user)
             content.add_widget(persist_user_button)
 
         # Create the popup
