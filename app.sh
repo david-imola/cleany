@@ -41,6 +41,12 @@ case "$COMMAND" in
       push)
         adb push tasks.yaml /sdcard/
         ;;
+      push-rooms)
+        adb push rooms.json /sdcard/
+        ;;
+      push-users)
+        adb push users.json /sdcard/
+        ;;
       reset)
         adb shell rm /sdcard/rooms.json /sdcard/it.json /sdcard/users.json
         ;;

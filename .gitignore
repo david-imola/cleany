@@ -5,3 +5,4 @@ tasks.yaml
 bin/
 *.json
 !schema.json
+tasks.yaml.backup*
