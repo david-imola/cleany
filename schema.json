@@ -9,7 +9,12 @@
           "properties": {
             "users": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "array", "items": { "type": "string" } }
+                ]
+              }
             },
             "tasks": {
               "type": "object",
@@ -21,7 +26,12 @@
                     "properties": {
                       "users": {
                         "type": "array",
-                        "items": { "type": "string" }
+                        "items": {
+                          "oneOf": [
+                            { "type": "string" },
+                            { "type": "array", "items": { "type": "string" } }
+                          ]
+                        }
                       },
                       "period": {"type": "string"},
                       "stagger": {"type": "string"}

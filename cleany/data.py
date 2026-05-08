@@ -260,12 +260,39 @@ class Users():
         """
         Increment up user's score and decrement down user's score.
         """
-        if up not in self._users:
-            raise KeyError(f"Up user {up} wasnt found in Users")
-        if down not in self._users:
-            raise KeyError(f"Down user {down} wasnt found in Users")
-        self._users[up] += 1
-        self._users[down] -= 1
+        # Support dict mapping user->amount (float), or single user or list of users (treated as +1/-1)
+        up_map = {}
+        down_map = {}
+
+        if isinstance(up, dict):
+            up_map = dict(up)
+        else:
+            # allow passing a single user or iterable: each gets +1
+            if isinstance(up, (list, tuple, set)):
+                for u in up:
+                    up_map[u] = up_map.get(u, 0) + 1.0
+            else:
+                up_map[up] = up_map.get(up, 0) + 1.0
+
+        if isinstance(down, dict):
+            down_map = dict(down)
+        else:
+            if isinstance(down, (list, tuple, set)):
+                for d in down:
+                    down_map[d] = down_map.get(d, 0) + 1.0
+            else:
+                down_map[down] = down_map.get(down, 0) + 1.0
+
+        # Validate users exist
+        for u in list(up_map.keys()) + list(down_map.keys()):
+            if u not in self._users:
+                raise KeyError(f"User {u} wasnt found in Users")
+
+        # Apply increments/decrements (allow fractional amounts)
+        for u, amt in up_map.items():
+            self._users[u] += float(amt)
+        for d, amt in down_map.items():
+            self._users[d] -= float(amt)
 
     def get_score(self, user):
         """
