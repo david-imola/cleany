@@ -682,4 +682,20 @@ class CleanyApp(App):
     The Cleany kivy application object. Call CleanyApp().run() to run it.
     """
     def build(self):
+        # On Raspberry Pi / kiosk setups we prefer fullscreen. Allow an environment
+        # variable to override cursor hiding (CLEANY_SHOW_CURSOR=1).
+        try:
+            # 'auto' lets Kivy try to use the best fullscreen mode for the platform
+            Window.fullscreen = 'auto'
+        except Exception:
+            # Some window providers may not support fullscreen assignment silently
+            pass
+
+        show_cursor = os.environ.get('CLEANY_SHOW_CURSOR', '0')
+        try:
+            Window.show_cursor = bool(int(show_cursor))
+        except Exception:
+            # If parsing fails, default to hiding the cursor
+            Window.show_cursor = False
+
         return _TaskManager()
