@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import json
 import os
 import requests
+import socket
 
 import yaml
 import kivy
@@ -18,6 +19,10 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.core.window import Window
+from kivy.uix.checkbox import CheckBox
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.gridlayout import GridLayout as KivyGrid
+from kivy.metrics import dp
 
 from . import weather, data, schema
 
@@ -79,7 +84,7 @@ class _TaskManager(BoxLayout):
         self.room_tasks_layout = BoxLayout(orientation='vertical')
         right_section = BoxLayout(orientation='vertical')
         self.time_label = Label(text=str(datetime.now().strftime(TIME_FMT)),
-                                    font_size='96sp')
+                                    font_size='84sp')
         self.date_label = Label(text=str(datetime.now().strftime(DATE_FMT)),
                                     font_size='32sp')
         self.points_layout = GridLayout(cols=2)
@@ -121,9 +126,12 @@ class _TaskManager(BoxLayout):
         try:
             temp, condition = weather.get_weather(
                 self.data['location']['lat'], self.data['location']['lon'])
-            self.weather_label.text = f"Temp: {temp}°C\nCondition: {condition}"
+            self.weather_label.text = f"Temp: {temp}°C; Condition: {condition}"
         except requests.exceptions.RequestException as e:
             self.weather_label.text = f"Weather update failed: {e}"
+        host = socket.gethostbyname(socket.gethostname())
+        self.weather_label.text += f"\nIP: {host}"
+        
 
     def _load_yaml(self):
         tasks_path = _get_filepath(TASKS_FILENAME)
@@ -476,11 +484,7 @@ class _TaskManager(BoxLayout):
         header = Label(text=txt, size_hint_y=None, height=40)
         content.add_widget(header)
 
-        # We will allow selecting multiple users with checkboxes
-        from kivy.uix.checkbox import CheckBox
-        from kivy.uix.scrollview import ScrollView
-        from kivy.uix.gridlayout import GridLayout as KivyGrid
-        from kivy.metrics import dp
+
 
         # Show individual members (flattened from groups) so any member can be selected
         flat_members = self._flat_members_for_task(task, indefinite)
@@ -595,48 +599,58 @@ class _TaskManager(BoxLayout):
         self.popup.open()
 
     def _show_confirmation_dialog(self, task, indefinite, instance=None):
-        # Create the popup content
+        # Use the same Grid/Row + ScrollView pattern as _different_user_dialog so the
+        # confirmation popup looks consistent and touch-friendly.
         content = BoxLayout(orientation='vertical')
-        txt = f"{task.user}, are you sure you have completed this task?\n\n{task.name}"
+
+        txt = f"{task.user}, are you sure you have completed this task?"
+
+        # Message grid (single-row) using the same Row/Grid pattern
+        row_height = dp(56)
+        grid = KivyGrid(cols=1, spacing=dp(6), padding=dp(6), size_hint_y=None)
+        grid.bind(minimum_height=grid.setter('height'))
+
+        class Row(ButtonBehavior, BoxLayout):
+            pass
+
+        msg_text = f"{task.name}"
+        if not indefinite:
+            msg_text = msg_text + f" in {task.room}"
+
+        # Compose single-line confirmation text and center it vertically
+        txt = f"{task.user}, are you sure you have completed this task? {task.name}"
         if not indefinite:
             txt = txt + f" in {task.room}"
-        content.add_widget(Label(text=txt))
 
-        # Define the buttons for the dialog
+        # To avoid the message sitting too close to the buttons, place the label
+        # inside a vertical BoxLayout with an expanding spacer above and below so
+        # the text appears visually centered within the popup.
+        spacer_top = BoxLayout(size_hint_y=0.2)
+        spacer_bottom = BoxLayout(size_hint_y=0.2)
+        lbl = Label(text=txt, size_hint_y=None, height=dp(40), halign='center', valign='middle')
+        lbl.bind(size=lambda inst, sz: setattr(inst, 'text_size', (inst.width, inst.height)))
+        content.add_widget(spacer_top)
+        content.add_widget(lbl)
+        content.add_widget(spacer_bottom)
+
+        # Buttons row
+        btns = BoxLayout(size_hint_y=None, height=dp(48))
+        confirm_button = Button(text="Confirm", on_press=lambda _: (self._complete_indefinite_task(task.name, instance) if indefinite else self._complete_task(task), self.popup.dismiss()))
         cancel_button = Button(text="Cancel", on_press=lambda _: self.popup.dismiss())
+        btns.add_widget(confirm_button)
+        btns.add_widget(cancel_button)
+        content.add_widget(btns)
 
-        def complete_task(_):
-            if indefinite:
-                self._complete_indefinite_task(task.name, instance)
-            else:
-                self._complete_task(task)
-            self.popup.dismiss()
-        confirm_button = Button(text="Confirm", on_press=complete_task)
-
-        # Add buttons to the content layout
-        content.add_widget(cancel_button)
-        content.add_widget(confirm_button)
-
-        # Add the non-advance task completion button
+        # Secondary action (open different-user dialog)
         def complete_task_persist_user(_):
-            # Dismiss current confirmation popup first, then open the different-user
-            # dialog on the next frame so the popups don't overlap visually.
             self.popup.dismiss()
-            from kivy.clock import Clock
             Clock.schedule_once(lambda dt: self._different_user_dialog(task, indefinite, instance), 0.05)
 
-
-        persist_user_button = Button(text="Complete task as a different user",
-                                     on_press=complete_task_persist_user)
+        persist_user_button = Button(text="Complete task as a different user", size_hint_y=None, height=dp(44), on_press=complete_task_persist_user)
         content.add_widget(persist_user_button)
 
-        # Create the popup
-        self.popup = Popup(title="Confirm Task Completion",
-                           content=content,
-                           size_hint=(0.7, 0.5),
-                           auto_dismiss=False)
-
-        # Open the popup
+        # Popup size similar to other dialog; give a bit more vertical room so centering looks good
+        self.popup = Popup(title="Confirm Task Completion", content=content, size_hint=(0.9, 0.55), auto_dismiss=False)
         self.popup.open()
 
     def _complete_task(self, task, advance_user=True):
