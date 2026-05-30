@@ -130,7 +130,7 @@ class _TaskManager(BoxLayout):
         except requests.exceptions.RequestException as e:
             self.weather_label.text = f"Weather update failed: {e}"
         host = socket.gethostbyname(socket.gethostname())
-        self.weather_label.text += f"\nIP: {host}"
+        self.weather_label.text += f"\nHostname: {host}"
         
 
     def _load_yaml(self):
