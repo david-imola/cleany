@@ -1,7 +1,8 @@
-kivy[base]
-buildozer>=1.5.0
-setuptools>=75.8.0
-cython>=3.0.12
+PyQt6>=6.7.0
+
 pyyaml>=6.0.2
-pylint>=3.3.4
+requests>=2.32.0
 fastjsonschema>=2.21.1
+
+pylint>=3.3.4
+setuptools>=75.8.0
