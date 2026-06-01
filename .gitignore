@@ -6,3 +6,4 @@ bin/
 *.json
 !schema.json
 tasks.yaml.backup*
+cleany.log
