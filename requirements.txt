@@ -6,3 +6,5 @@ fastjsonschema>=2.21.1
 
 pylint>=3.3.4
 setuptools>=75.8.0
+
+qdarkstyle>=3.2.3

@@ -3,6 +3,7 @@
 PyQt6 replacement for Cleany Kivy Application
 Generated port preserving task rotation, groups, scoring and dialogs.
 """
+from cProfile import label
 import sys
 import os
 import bisect
@@ -44,10 +45,10 @@ def _queued_color(due_date):
     today = datetime.now().date()
     delta = (due_date - today).days
     if delta == 0:
-        return "yellow"
+        return "#c9a227"   # darker gold
     if delta < 0:
-        return "red"
-    return "lightgreen"
+        return "#b84a4a"   # muted red
+    return "#7aa37a" 
 
 
 def _parse_period(period):
@@ -78,11 +79,18 @@ class TaskManager(QWidget):
 
         self.time_label = QLabel()
         self.time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.time_label.setStyleSheet("font-size:84px;")
+        self.time_label.setStyleSheet("""
+            font-size:96px;
+            font-weight:bold;
+            color:#d0d0d0;
+        """)
 
         self.date_label = QLabel()
         self.date_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.date_label.setStyleSheet("font-size:32px;")
+        self.date_label.setStyleSheet("""
+            font-size:42px;
+            color:#b0b0b0;
+        """)
 
         self.points_layout = QGridLayout()
         self.indefinite_tasks_layout = QVBoxLayout()
@@ -98,6 +106,11 @@ class TaskManager(QWidget):
         root.addLayout(top)
 
         self.weather_label = QLabel("Fetching weather...")
+        self.weather_label.setStyleSheet("""
+        font-size:32px;
+        color:#b0b0b0;
+        padding:10px;
+        """)
         root.addWidget(self.weather_label)
 
         self._load_yaml()
@@ -254,18 +267,27 @@ class TaskManager(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        self.points_layout.addWidget(QLabel("Name"), 0, 0)
-        self.points_layout.addWidget(QLabel("Points"), 0, 1)
+        hdr1 = QLabel("Name")
+        hdr1.setStyleSheet("font-size:22px;font-weight:bold;")
+
+        hdr2 = QLabel("Points")
+        hdr2.setStyleSheet("font-size:22px;font-weight:bold;")                
+
+        self.points_layout.addWidget(hdr1, 0, 0)
+        self.points_layout.addWidget(hdr2, 0, 1)  # Spacer
 
         for row, (user, pts) in enumerate(self.users.all(), start=1):
-            self.points_layout.addWidget(QLabel(user), row, 0)
+            name = QLabel(user)
+            name.setStyleSheet("font-size:20px;")
+            self.points_layout.addWidget(name, row, 0)
 
             lbl = QLabel(self._format_points(pts))
+            lbl.setStyleSheet("font-size:20px;")
 
             if pts > 0:
-                lbl.setStyleSheet("color: green")
+                lbl.setStyleSheet("font-size:20px; color: green")
             elif pts < 0:
-                lbl.setStyleSheet("color: red")
+                lbl.setStyleSheet("font-size:20px; color: red")
 
             self.points_layout.addWidget(lbl, row, 1)
 
@@ -277,7 +299,8 @@ class TaskManager(QWidget):
             btn = QPushButton(
                 f"Task: {task.name}\nWho: {task.user}\nWhere: {task.room}\nDue: {task.due_date} ({task.period})"
             )
-            btn.setStyleSheet(f"background:{_queued_color(task.due_date)}")
+            btn.setMinimumHeight(100)
+            btn.setStyleSheet(f"background:{_queued_color(task.due_date)}; font-size:24px; padding:15px;")
             btn.clicked.connect(lambda _, t=task: self.confirm_task(t))
             self.room_tasks_layout.addWidget(btn)
 
@@ -286,6 +309,12 @@ class TaskManager(QWidget):
                 f"{task.name}\n{task.user}\n{task.rep}/{task.total_reps}"
             )
             btn.clicked.connect(lambda _, t=task: self.confirm_indefinite(t))
+            btn.setMinimumHeight(90)
+            btn.setStyleSheet("""
+                font-size:22px;
+                padding:12px;
+                text-align:center;
+            """)
             self.indefinite_tasks_layout.addWidget(btn)
 
     def complete_task(self, task):
@@ -304,11 +333,13 @@ class TaskManager(QWidget):
     def confirm_task(self, task):
         dlg = QDialog(self)
         dlg.setWindowTitle("Confirm Task")
+        dlg.resize(700, 400)
 
         layout = QVBoxLayout(dlg)
-        layout.addWidget(
-            QLabel(f"{task.user}, completed {task.name} in {task.room}?")
-        )
+
+        label = QLabel(f"{task.user}, completed {task.name} in {task.room}?")
+        label.setStyleSheet("font-size:24px;")
+        layout.addWidget(label)
 
         ok = QPushButton("Confirm")
         cancel = QPushButton("Cancel")
@@ -316,6 +347,14 @@ class TaskManager(QWidget):
         different = QPushButton(
             "Complete task as a different user"
         )
+
+        ok.setMinimumHeight(100)
+        cancel.setMinimumHeight(100)
+        different.setMinimumHeight(100)
+
+        ok.setStyleSheet("font-size:20px;")
+        cancel.setStyleSheet("font-size:20px;")
+        different.setStyleSheet("font-size:20px;")
 
         ok.clicked.connect(lambda: (self.complete_task(task), dlg.accept()))
         cancel.clicked.connect(dlg.reject)
@@ -339,13 +378,23 @@ class TaskManager(QWidget):
         dlg = QDialog(self)
         layout = QVBoxLayout(dlg)
 
-        layout.addWidget(QLabel(task.name))
+        label = QLabel(task.name)
+        label.setStyleSheet("font-size:24px;")
+        layout.addWidget(label)
 
         ok = QPushButton("Confirm")
         cancel = QPushButton("Cancel")
         different = QPushButton(
         "Complete task as a different user"
         )
+
+        ok.setMinimumHeight(100)
+        cancel.setMinimumHeight(100)
+        different.setMinimumHeight(100)
+
+        ok.setStyleSheet("font-size:20px;")
+        cancel.setStyleSheet("font-size:20px;")
+        different.setStyleSheet("font-size:20px;")
 
         ok.clicked.connect(
             lambda: (self.complete_indefinite(task), dlg.accept())
@@ -433,8 +482,11 @@ class TaskManager(QWidget):
         dlg = QDialog(self)
 
         dlg.setWindowTitle("Complete task as a different user")
+
         layout = QVBoxLayout(dlg)
-        layout.addWidget(QLabel(f"Complete {task.name} as:"))
+        label = QLabel(f"Complete {task.name} as:")
+        label.setStyleSheet("font-size:28px; font-weight:bold;")
+        layout.addWidget(label)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -448,6 +500,7 @@ class TaskManager(QWidget):
         ):
 
             cb = QCheckBox(member)
+            cb.setStyleSheet("font-size:24px; padding:8px;")
             checkboxes[member] = cb
             users_layout.addWidget(cb)
 
@@ -522,6 +575,19 @@ class TaskManager(QWidget):
         complete_btn = QPushButton("Complete for selected users")
         cancel_btn = QPushButton("Cancel")
 
+        complete_btn.setMinimumHeight(100)
+        cancel_btn.setMinimumHeight(100)
+
+        complete_btn.setStyleSheet("""
+            font-size:22px;
+            padding:10px;
+        """)
+
+        cancel_btn.setStyleSheet("""
+            font-size:22px;
+            padding:10px;
+        """)
+
         complete_btn.clicked.connect(complete_selected)
         cancel_btn.clicked.connect(dlg.reject)
 
@@ -550,6 +616,7 @@ class CleanyApp(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
     window = CleanyApp()
     window.show()
     sys.exit(app.exec())

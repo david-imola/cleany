@@ -4,14 +4,21 @@ Entry point for the application
 
 import argparse
 import sys
+import qdarkstyle
+
 
 from PyQt6.QtWidgets import QApplication
+
+
 
 from cleany import CleanyApp, schema, TASKS_FILENAME, SCHEMA_FILENAME
 
 
 def run_app():
     app = QApplication(sys.argv)
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt6())
+    
+
     window = CleanyApp()
     window.show()
     sys.exit(app.exec())
