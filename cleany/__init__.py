@@ -132,7 +132,16 @@ class TaskManager(QWidget):
         self.weather_timer.timeout.connect(self.update_weather)
         self.weather_timer.start(600000)
 
+        self.task_timer = QTimer(self)
+        self.task_timer.timeout.connect(self.update_task_states)
+        self.task_timer.start(60_000)
+
         self.update_weather()
+
+    def update_task_states(self):
+        today = datetime.now().date()
+        for task, button in self.task_buttons.items():
+            button.setEnabled(task.due_date <= today)
 
     def _load_yaml(self):
         with open(_get_filepath(TASKS_FILENAME), "r", encoding="utf8") as f:
@@ -297,13 +306,38 @@ class TaskManager(QWidget):
         self.clear_layout(self.room_tasks_layout)
         self.clear_layout(self.indefinite_tasks_layout)
 
+        self.task_buttons = {}
+
         for task in self.assigned_tasks[:NUM_TASKS_DISPLAYED]:
             btn = QPushButton(
                 f"Task: {task.name}\nWho: {task.user}\nWhere: {task.room}\nDue: {task.due_date} ({task.period})"
             )
+            self.task_buttons[task] = btn
             btn.setMinimumHeight(100)
-            btn.setStyleSheet(f"background:{_queued_color(task.due_date)}; font-size:24px; padding:15px;")
+            btn.setStyleSheet(
+                f"""
+                QPushButton {{
+                    background: {_queued_color(task.due_date)};
+                    font-size: 24px;
+                    padding: 15px;
+                    border: 2px solid #666;
+                    border-radius: 8px;
+                }}
+
+                QPushButton:disabled {{
+                    background-color: #888888;
+                    color: #555555;
+                    border: 3px dashed #444444;
+                    font-size: 24px;
+                    padding: 15px;
+                }}
+                """
+            )
             btn.clicked.connect(lambda _, t=task: self.confirm_task(t))
+
+            today = datetime.now().date()
+            btn.setEnabled(task.due_date <= today)
+
             self.room_tasks_layout.addWidget(btn)
 
         for task in self.indefinite_tasks:
