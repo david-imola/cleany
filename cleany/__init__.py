@@ -65,6 +65,19 @@ def _parse_period(period):
     return timedelta(days=1)
 
 
+def _get_weekday_delta(days):
+    today = datetime.now().date()
+    today_weekday = today.weekday()  # Monday=0, Sunday=6
+    deltas = []
+    for day in days:
+        target_weekday = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].index(day)
+        delta = (target_weekday - today_weekday) % 7
+        if delta == 0:
+            delta = 7
+        deltas.append(delta)
+    return min(deltas)
+
+
 class TaskManager(QWidget):
 
     def __init__(self):
@@ -185,10 +198,17 @@ class TaskManager(QWidget):
             period_str = task_dict
             period = _parse_period(period_str)
         else:
-            period_str = task_dict["period"]
-            period = _parse_period(period_str)
-            if "stagger" in task_dict and init:
-                period += _parse_period(task_dict["stagger"])
+            if "period" in task_dict:
+                period_str = task_dict["period"]
+                period = _parse_period(period_str)
+                if "stagger" in task_dict and init:
+                    period += _parse_period(task_dict["stagger"])
+            else:
+                days = task_dict["days"]
+                period = timedelta(days=_get_weekday_delta(days))
+                period_str = [d[0:2] if d == "Thursday" or d[0] == "S" else d[0] for d in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] if d in days]
+                period_str = ",".join(period_str)
+
         return period_str, (datetime.now() + period).date()
 
     def _assign_task(self, room_name, task_name, current_user, init, advance_user):
