@@ -111,6 +111,8 @@ class TaskManager(QWidget):
         color:#b0b0b0;
         padding:10px;
         """)
+        self.weather_label.setMaximumWidth(600)
+        self.weather_label.setWordWrap(True)
         root.addWidget(self.weather_label)
 
         self._load_yaml()
@@ -150,7 +152,7 @@ class TaskManager(QWidget):
             )
             host = socket.getfqdn()
             self.weather_label.setText(
-                f"Temp: {temp}°C; Condition: {cond}\nHostname: {host}"
+                f"{temp}°C; {cond}\nHostname: {host}"
             )
         except requests.exceptions.RequestException as e:
             self.weather_label.setText(str(e))
