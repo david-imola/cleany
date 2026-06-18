@@ -15,6 +15,7 @@ import requests
 import yaml
 
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QTime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -135,12 +136,13 @@ class TaskManager(QWidget):
         self._display_users()
         self._display_tasks()
 
+        self.last_minute = -1
         self.update_datetime()
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_datetime)
         self.timer.start(1000)
-
+        
         self.weather_timer = QTimer(self)
         self.weather_timer.timeout.connect(self.update_weather)
         self.weather_timer.start(600000)
@@ -172,9 +174,13 @@ class TaskManager(QWidget):
         schema.validate_yaml(self.data, SCHEMA_FILENAME)
 
     def update_datetime(self):
-        now = datetime.now()
-        self.time_label.setText(now.strftime(TIME_FMT))
-        self.date_label.setText(now.strftime(DATE_FMT))
+        minute = QTime.currentTime().minute()
+
+        if minute != self.last_minute:
+            self.last_minute = minute
+            now = datetime.now()
+            self.time_label.setText(now.strftime(TIME_FMT))
+            self.date_label.setText(now.strftime(DATE_FMT))
 
     def update_weather(self):
         try:
