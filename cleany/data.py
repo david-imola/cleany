@@ -87,6 +87,15 @@ class Tasks(list):
         super().remove(value)
         self._save()
 
+    def refresh(self):
+        """
+        Refresh the list from storage, in case of changes in the yaml file or other updates
+        """
+        # MUST BE SUPER CLEAR!
+        super().clear()
+        self.extend(self._load())
+
+
     def pop(self, index=-1):
         value = super().pop(index)
         self._save()
@@ -196,6 +205,15 @@ class IndefiniteTasks(list):
         self[index].rep = 1
         self[index].user = new_user
         self._save()
+
+
+    def refresh(self):
+        """
+        Refresh the list from storage, in case of changes in the yaml file or other updates
+        """
+        # MUST BE SUPER CLEAR!
+        super().clear()
+        self.extend(self._load())
 
 
 

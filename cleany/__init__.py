@@ -149,12 +149,22 @@ class TaskManager(QWidget):
         self.task_timer.timeout.connect(self.update_task_states)
         self.task_timer.start(60_000)
 
+        # every half hour call this bad boy to update the tasks display, in case of changes in the yaml file or other updates
+        self.task_timer_2 = QTimer(self)
+        self.task_timer_2.timeout.connect(self.refresh_tasks)
+        self.task_timer_2.start(1800_000)
+
         self.update_weather()
 
     def update_task_states(self):
         today = datetime.now().date()
         for task, button in self.task_buttons.items():
             button.setEnabled(task.due_date <= today)
+
+    def refresh_tasks(self):
+        self.assigned_tasks.refresh()
+        self.indefinite_tasks.refresh()
+        self._display_tasks()
 
     def _load_yaml(self):
         with open(_get_filepath(TASKS_FILENAME), "r", encoding="utf8") as f:
