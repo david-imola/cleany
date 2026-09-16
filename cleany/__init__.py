@@ -66,18 +66,19 @@ def _parse_period(period):
     return timedelta(days=1)
 
 
-def _get_weekday_delta(days):
-    today = datetime.now().date()
-    today_weekday = today.weekday()  # Monday=0, Sunday=6
+def _get_weekday_delta(days, init=False, base_date=None):
+    if base_date is None:
+        base_date = datetime.now().date()
+    base_weekday = base_date.weekday()  # Monday=0, Sunday=6
     deltas = []
     for day in days:
         target_weekday = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].index(day)
-        delta = (target_weekday - today_weekday) % 7
-        if delta == 0:
+        delta = (target_weekday - base_weekday) % 7
+        # Allow delta to be 0 (due today) on initialization if today matches
+        if delta == 0 and not init:
             delta = 7
         deltas.append(delta)
     return min(deltas)
-
 
 class TaskManager(QWidget):
 
@@ -158,6 +159,16 @@ class TaskManager(QWidget):
 
         self.update_weather()
 
+    def _ordinal_suffix(self, n):
+        if 10 <= n % 100 <= 20:
+            return "th"
+
+        return {
+            1: "st",
+            2: "nd",
+            3: "rd",
+        }.get(n % 10, "th")
+
     def update_task_states(self):
         today = datetime.now().date()
         for task, button in self.task_buttons.items():
@@ -209,25 +220,60 @@ class TaskManager(QWidget):
             return " and ".join(entry)
         return entry
 
-    def _get_new_duedate(self, task_dict, init):
+    def _get_new_duedate(self, task_dict, init, current_due_date=None):
         if isinstance(task_dict, str):
             period_str = task_dict
             period = _parse_period(period_str)
+            base_date = current_due_date if current_due_date else datetime.now().date()
+            return period_str, base_date + period
+
         else:
-            if "period" in task_dict:
+            if "schedule" in task_dict:
+                schedule = task_dict["schedule"]
+                week = int(schedule["week"])
+                day = schedule["day"]
+
+                period_str, due_date = self._get_monthly_ordinal_delta(
+                    week,
+                    day,
+                    current_due_date
+                )
+                return period_str, due_date
+
+            elif "period" in task_dict:
                 period_str = task_dict["period"]
                 period = _parse_period(period_str)
+                base_date = current_due_date if current_due_date else datetime.now().date()
+
                 if "stagger" in task_dict and init:
                     period += _parse_period(task_dict["stagger"])
+
+                return period_str, base_date + period
+
             else:
                 days = task_dict["days"]
-                period = timedelta(days=_get_weekday_delta(days))
-                period_str = [d[0:2] if d == "Thursday" or d[0] == "S" else d[0] for d in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] if d in days]
+                base_date = current_due_date if current_due_date else datetime.now().date()
+                delta = _get_weekday_delta(days, init, base_date)
+                period = timedelta(days=delta)
+
+                period_str = [
+                    d[0:2] if d == "Thursday" or d[0] == "S" else d[0]
+                    for d in [
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                        "Sunday"
+                    ]
+                    if d in days
+                ]
+
                 period_str = ",".join(period_str)
+                return period_str, base_date + period
 
-        return period_str, (datetime.now() + period).date()
-
-    def _assign_task(self, room_name, task_name, current_user, init, advance_user):
+    def _assign_task(self, room_name, task_name, current_user, init, advance_user, current_due_date=None):
         room = self.data["rooms"][room_name]
         task_obj = room["tasks"][task_name]
 
@@ -236,9 +282,16 @@ class TaskManager(QWidget):
         else:
             groups = self._normalize_user_groups(room["users"])
 
+        target_display = self._user_display_name(current_user)
+
         idx = 0
         for i, g in enumerate(groups):
-            if current_user in g or self._user_display_name(g) == current_user:
+            # Match single user inside group, exact group list match, or matching display string ("david and francesco")
+            if (
+                (isinstance(current_user, str) and current_user in g)
+                or self._user_display_name(g) == target_display
+                or g == current_user
+            ):
                 idx = i
                 break
 
@@ -246,7 +299,15 @@ class TaskManager(QWidget):
             idx = (idx + 1) % len(groups)
 
         new_user = self._user_display_name(groups[idx])
-        period_str, due_date = self._get_new_duedate(task_obj, init)
+        
+        # If not passed explicitly, attempt lookup
+        if not init and current_due_date is None:
+            for t in self.assigned_tasks:
+                if t.room == room_name and t.name == task_name:
+                    current_due_date = t.due_date
+                    break
+
+        period_str, due_date = self._get_new_duedate(task_obj, init, current_due_date)
 
         bisect.insort(
             self.assigned_tasks,
@@ -266,29 +327,38 @@ class TaskManager(QWidget):
         if len(self.assigned_tasks) == 0:
             for room, details in self.data["rooms"].items():
                 groups = self._normalize_user_groups(details["users"])
-                user = groups[-1][-1]
+                default_prev_user = groups[-1][-1]
 
                 for task_name, task in details["tasks"].items():
-                    if isinstance(task, str) or "users" not in task:
-                        user = self._assign_task(room, task_name, user, True, True)
+                    if isinstance(task, str):
+                        self._assign_task(room, task_name, default_prev_user, True, True)
                     else:
-                        tgroups = self._normalize_user_groups(task["users"])
-                        self._assign_task(
-                            room,
-                            task_name,
-                            tgroups[-1][-1],
-                            True,
-                            True
+                        start_user = task.get("start_user")
+                        task_groups = (
+                            self._normalize_user_groups(task["users"])
+                            if "users" in task
+                            else groups
                         )
+                        
+                        if start_user is not None:
+                            self._assign_task(room, task_name, start_user, True, False)
+                        else:
+                            prev_user = task_groups[-1][-1]
+                            self._assign_task(room, task_name, prev_user, True, True)
 
         self.indefinite_tasks = data.IndefiniteTasks(_get_filepath(IT_FILENAME))
 
         if len(self.indefinite_tasks) == 0:
             for task, details in self.data["indefinite_tasks"].items():
+                start_user = details.get("start_user", details["users"][0])
+                
+                # Format list display name if a list is provided in start_user
+                display_user = self._user_display_name(start_user)
+                
                 bisect.insort(
                     self.indefinite_tasks,
                     data.new_indefinite_task(
-                        details["users"][0],
+                        display_user,
                         task,
                         details["repetitions"]
                     )
@@ -390,8 +460,16 @@ class TaskManager(QWidget):
             self.indefinite_tasks_layout.addWidget(btn)
 
     def complete_task(self, task):
+        due_date = task.due_date
         self.assigned_tasks.remove(task)
-        self._assign_task(task.room, task.name, task.user, False, True)
+        self._assign_task(
+            room_name=task.room,
+            task_name=task.name,
+            current_user=task.user,
+            init=False,
+            advance_user=True,
+            current_due_date=due_date
+        )
         self._display_tasks()
 
     def complete_indefinite(self, task):
@@ -668,7 +746,49 @@ class TaskManager(QWidget):
 
         dlg.resize(500, 600)
         dlg.exec()
+
+    def _get_monthly_ordinal_delta(self, week, day, current_due_date=None):
+        if week < 1 or week > 5:
+            raise ValueError("week must be between 1 and 5")
+
+        weekdays = [
+            "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+        ]
+
+        if day not in weekdays:
+            raise ValueError(f"Invalid weekday: {day}")
+
+        target_weekday = weekdays.index(day)
         
+        # Use current_due_date + 1 day as the minimum baseline to force moving forward, 
+        # falling back to today's date.
+        reference_date = (current_due_date + timedelta(days=1)) if current_due_date else datetime.now().date()
+
+        def find_occurrence(year, month):
+            first = datetime(year, month, 1).date()
+            offset = (target_weekday - first.weekday()) % 7
+            occurrence = first + timedelta(days=offset + (week - 1) * 7)
+            if occurrence.month != month:
+                return None
+            return occurrence
+
+        year = reference_date.year
+        month = reference_date.month
+
+        while True:
+            occurrence = find_occurrence(year, month)
+
+            if occurrence is not None and occurrence >= reference_date:
+                period_str = f"{week}{self._ordinal_suffix(week)} {day}"
+                return period_str, occurrence
+
+            # Move to next month
+            if month == 12:
+                year += 1
+                month = 1
+            else:
+                month += 1
+            
         
 
 

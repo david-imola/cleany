@@ -1,44 +1,121 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "properties": {
-      "rooms": {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "rooms": {
+      "type": "object",
+      "additionalProperties": {
         "type": "object",
-        "additionalProperties": {
-          "type": "object",
-          "properties": {
-            "users": {
-              "type": "array",
-              "items": {
-                "oneOf": [
-                  { "type": "string" },
-                  { "type": "array", "items": { "type": "string" } }
-                ]
-              }
-            },
-            "tasks": {
-              "type": "object",
-              "additionalProperties": {
-                "oneOf": [
-                  {"type": "string"},
-                  {
-                    "type": "object",
-                    "properties": {
-                      "users": {
-                        "type": "array",
-                        "items": {
-                          "oneOf": [
-                            { "type": "string" },
-                            { "type": "array", "items": { "type": "string" } }
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                { "type": "string" },
+                {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              ]
+            }
+          },
+
+          "tasks": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+
+                  "properties": {
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          { "type": "string" },
+                          {
+                            "type": "array",
+                            "items": { "type": "string" }
+                          }
+                        ]
+                      }
+                    },
+
+                    "period": {
+                      "type": "string"
+                    },
+
+                    "days": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "Monday",
+                          "Tuesday",
+                          "Wednesday",
+                          "Thursday",
+                          "Friday",
+                          "Saturday",
+                          "Sunday"
+                        ]
+                      }
+                    },
+
+                    "stagger": {
+                      "type": "string"
+                    },
+
+                    "start_user": {
+                      "oneOf": [
+                        { "type": "string" },
+                        {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        }
+                      ]
+                    },
+                    "schedule": {
+                      "type": "object",
+                      "properties": {
+                        "week": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 5
+                        },
+                        "day": {
+                          "type": "string",
+                          "enum": [
+                            "Monday",
+                            "Tuesday",
+                            "Wednesday",
+                            "Thursday",
+                            "Friday",
+                            "Saturday",
+                            "Sunday"
                           ]
                         }
                       },
-                      "period": {"type": "string"},
-                      "days": {"type": "array", "items": { "type": "string", "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }},
-                      "stagger": {"type": "string"}
+                      "required": ["week", "day"],
+                      "additionalProperties": false
+                    }
+                  },
+
+                  "oneOf": [
+                    {
+                      "required": ["period"]
                     },
-                    "oneOf": [{ "required": ["period"] },  { "required": ["days"] }],
-                    "allOf": [
+                    {
+                      "required": ["days"]
+                    },
+                    {
+                      "required": ["schedule"]
+                    }
+                  ],
+
+                  "allOf": [
                     {
                       "if": {
                         "required": ["days"]
@@ -48,40 +125,87 @@
                           "required": ["stagger"]
                         }
                       }
+                    },
+                    {
+                      "if": {
+                        "required": ["schedule"]
+                      },
+                      "then": {
+                        "not": {
+                          "required": ["stagger"]
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "required": ["schedule"]
+                      },
+                      "then": {
+                        "not": {
+                          "required": ["period"]
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "required": ["schedule"]
+                      },
+                      "then": {
+                        "not": {
+                          "required": ["days"]
+                        }
+                      }
                     }
                   ],
-                    "additionalProperties": false
-                  }
-                ]
+
+                  "additionalProperties": false
+                }
+              ]
             }
           }
-          },
-          "required": ["users", "tasks"]
-        }
-      },
-      "indefinite_tasks": {
-        "type": "object",
-        "additionalProperties": {
-          "type": "object",
-          "properties": {
-            "users": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "repetitions": { "type": "integer", "minimum": 1 }
-          },
-          "required": ["users", "repetitions"]
-        }
-      },
-      "location": {
-        "type": "object",
-        "properties": {
-          "lat": { "type": "number" },
-          "lon": { "type": "number" }
         },
-        "required": ["lat", "lon"]
+
+        "required": ["users", "tasks"]
       }
     },
-    "required": ["rooms", "indefinite_tasks", "location"]
-  }
-  
+
+    "indefinite_tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repetitions": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["users", "repetitions"]
+      }
+    },
+
+    "location": {
+      "type": "object",
+      "properties": {
+        "lat": {
+          "type": "number"
+        },
+        "lon": {
+          "type": "number"
+        }
+      },
+      "required": ["lat", "lon"]
+    }
+  },
+
+  "required": [
+    "rooms",
+    "indefinite_tasks",
+    "location"
+  ]
+}
