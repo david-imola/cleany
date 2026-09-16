@@ -416,7 +416,7 @@ class TaskManager(QWidget):
 
         for task in self.assigned_tasks[:NUM_TASKS_DISPLAYED]:
             btn = QPushButton(
-                f"Task: {task.name}\nWho: {task.user}\nWhere: {task.room}\nDue: {task.due_date} ({task.period})"
+                f"Task: {task.name}; Due: {task.due_date} ({task.period})\nWho: {task.user}\nWhere: {task.room}"
             )
             self.task_buttons[task] = btn
             btn.setMinimumHeight(100)
