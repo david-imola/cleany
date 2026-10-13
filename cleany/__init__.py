@@ -203,7 +203,7 @@ class TaskManager(QWidget):
             self.weather_label.setText(
                 f"{temp}°C; {cond}\nHostname: {host}"
             )
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             self.weather_label.setText(str(e))
 
     def _normalize_user_groups(self, users_def):
