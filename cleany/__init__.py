@@ -668,8 +668,8 @@ class TaskManager(QWidget):
                 dlg.accept()
                 return
             if indefinite:
-                self.complete_indefinite(task)
                 intended_members = [task.user]
+                self.complete_indefinite(task)
             else:
                 self.complete_task(task)
                 intended_members = self._members_for_display(
