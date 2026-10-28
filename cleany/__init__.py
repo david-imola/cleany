@@ -11,7 +11,6 @@ import socket
 from datetime import datetime, timedelta
 from fractions import Fraction
 
-import requests
 import yaml
 
 from PyQt6.QtCore import Qt, QTimer
@@ -80,6 +79,7 @@ def _get_weekday_delta(days, init=False, base_date=None):
         deltas.append(delta)
     return min(deltas)
 
+
 class TaskManager(QWidget):
 
     def __init__(self):
@@ -108,12 +108,12 @@ class TaskManager(QWidget):
         """)
 
         self.points_layout = QGridLayout()
-        self.indefinite_tasks_layout = QVBoxLayout()
+        self.right_tasks_layout = QVBoxLayout()
 
         right.addWidget(self.time_label)
         right.addWidget(self.date_label)
         right.addLayout(self.points_layout)
-        right.addLayout(self.indefinite_tasks_layout)
+        right.addLayout(self.right_tasks_layout)
 
         top.addLayout(self.room_tasks_layout, 2)
         top.addLayout(right, 1)
@@ -176,7 +176,6 @@ class TaskManager(QWidget):
 
     def refresh_tasks(self):
         self.assigned_tasks.refresh()
-        self.indefinite_tasks.refresh()
         self._display_tasks()
 
     def _load_yaml(self):
@@ -273,7 +272,7 @@ class TaskManager(QWidget):
                 period_str = ",".join(period_str)
                 return period_str, base_date + period
 
-    def _assign_task(self, room_name, task_name, current_user, init, advance_user, current_due_date=None):
+    def _assign_task(self, room_name, task_name, current_user, right, init, advance_user, current_due_date=None):
         room = self.data["rooms"][room_name]
         task_obj = room["tasks"][task_name]
 
@@ -311,7 +310,7 @@ class TaskManager(QWidget):
 
         bisect.insort(
             self.assigned_tasks,
-            data.new_task(new_user, room_name, task_name, due_date, period_str)
+            data.new_task(new_user, room_name, task_name, right, due_date, period_str)
         )
         return new_user
 
@@ -331,9 +330,10 @@ class TaskManager(QWidget):
 
                 for task_name, task in details["tasks"].items():
                     if isinstance(task, str):
-                        self._assign_task(room, task_name, default_prev_user, True, True)
+                        self._assign_task(room, task_name, default_prev_user, False, True, True)
                     else:
                         start_user = task.get("start_user")
+                        right = task.get("right", False)
                         task_groups = (
                             self._normalize_user_groups(task["users"])
                             if "users" in task
@@ -341,28 +341,10 @@ class TaskManager(QWidget):
                         )
                         
                         if start_user is not None:
-                            self._assign_task(room, task_name, start_user, True, False)
+                            self._assign_task(room, task_name, start_user, right, True, False)
                         else:
                             prev_user = task_groups[-1][-1]
-                            self._assign_task(room, task_name, prev_user, True, True)
-
-        self.indefinite_tasks = data.IndefiniteTasks(_get_filepath(IT_FILENAME))
-
-        if len(self.indefinite_tasks) == 0:
-            for task, details in self.data["indefinite_tasks"].items():
-                start_user = details.get("start_user", details["users"][0])
-                
-                # Format list display name if a list is provided in start_user
-                display_user = self._user_display_name(start_user)
-                
-                bisect.insort(
-                    self.indefinite_tasks,
-                    data.new_indefinite_task(
-                        display_user,
-                        task,
-                        details["repetitions"]
-                    )
-                )
+                            self._assign_task(room, task_name, prev_user, right, True, True)
 
     def clear_layout(self, layout):
         while layout.count():
@@ -410,7 +392,7 @@ class TaskManager(QWidget):
 
     def _display_tasks(self):
         self.clear_layout(self.room_tasks_layout)
-        self.clear_layout(self.indefinite_tasks_layout)
+        self.clear_layout(self.right_tasks_layout)
 
         self.task_buttons = {}
 
@@ -444,20 +426,10 @@ class TaskManager(QWidget):
             today = datetime.now().date()
             btn.setEnabled(task.due_date <= today)
 
-            self.room_tasks_layout.addWidget(btn)
-
-        for task in self.indefinite_tasks:
-            btn = QPushButton(
-                f"{task.name}\n{task.user}\n{task.rep}/{task.total_reps}"
-            )
-            btn.clicked.connect(lambda _, t=task: self.confirm_indefinite(t))
-            btn.setMinimumHeight(90)
-            btn.setStyleSheet("""
-                font-size:22px;
-                padding:12px;
-                text-align:center;
-            """)
-            self.indefinite_tasks_layout.addWidget(btn)
+            if task.right:
+                self.right_tasks_layout.addWidget(btn)
+            else:
+                self.room_tasks_layout.addWidget(btn)
 
     def complete_task(self, task):
         due_date = task.due_date
@@ -468,16 +440,9 @@ class TaskManager(QWidget):
             current_user=task.user,
             init=False,
             advance_user=True,
+            right=task.right,
             current_due_date=due_date
         )
-        self._display_tasks()
-
-    def complete_indefinite(self, task):
-        i, task = self.indefinite_tasks.increment(task.name)
-        if task.rep > task.total_reps:
-            users = self.data["indefinite_tasks"][task.name]["users"]
-            new_user = users[(users.index(task.user) + 1) % len(users)]
-            self.indefinite_tasks.reset(i, new_user)
         self._display_tasks()
 
     def confirm_task(self, task):
@@ -524,49 +489,6 @@ class TaskManager(QWidget):
 
         dlg.exec()
 
-    def confirm_indefinite(self, task):
-        dlg = QDialog(self)
-        layout = QVBoxLayout(dlg)
-
-        label = QLabel(task.name)
-        label.setStyleSheet("font-size:24px;")
-        layout.addWidget(label)
-
-        ok = QPushButton("Confirm")
-        cancel = QPushButton("Cancel")
-        different = QPushButton(
-        "Complete task as a different user"
-        )
-
-        ok.setMinimumHeight(100)
-        cancel.setMinimumHeight(100)
-        different.setMinimumHeight(100)
-
-        ok.setStyleSheet("font-size:20px;")
-        cancel.setStyleSheet("font-size:20px;")
-        different.setStyleSheet("font-size:20px;")
-
-        ok.clicked.connect(
-            lambda: (self.complete_indefinite(task), dlg.accept())
-        )
-        cancel.clicked.connect(dlg.reject)
-
-        different.clicked.connect(
-            lambda: (
-                dlg.accept(),
-                self.different_user_dialog(
-                    task,
-                    True
-                )
-            )
-        )
-
-        layout.addWidget(ok)
-        layout.addWidget(cancel)
-        layout.addWidget(different)
-
-        dlg.exec()
-
     def _members_for_display(self, display_name, room_name, task_name=None):
 
         room = self.data["rooms"].get(room_name)
@@ -591,18 +513,9 @@ class TaskManager(QWidget):
 
         return []
     
-    def _flat_members_for_task(self, task, indefinite):
+    def _flat_members_for_task(self, task):
 
         members = []
-
-        if indefinite:
-            users = self.data["indefinite_tasks"][task.name]["users"]
-
-            for u in users:
-                if u not in members:
-                    members.append(u)
-
-            return members
 
         room = self.data["rooms"].get(task.room)
 
@@ -627,7 +540,7 @@ class TaskManager(QWidget):
         self.users.up_and_down(up, down)
         self._display_users()
 
-    def different_user_dialog(self, task, indefinite):
+    def different_user_dialog(self, task):
 
         dlg = QDialog(self)
 
@@ -645,8 +558,7 @@ class TaskManager(QWidget):
         checkboxes = {}
 
         for member in self._flat_members_for_task(
-            task,
-            indefinite
+            task
         ):
 
             cb = QCheckBox(member)
@@ -667,19 +579,14 @@ class TaskManager(QWidget):
             if not selected_members:
                 dlg.accept()
                 return
-            if indefinite:
+            self.complete_task(task)
+            intended_members = self._members_for_display(
+                task.user,
+                task.room,
+                task.name
+            )
+            if not intended_members:
                 intended_members = [task.user]
-                self.complete_indefinite(task)
-            else:
-                self.complete_task(task)
-                intended_members = self._members_for_display(
-                    task.user,
-                    task.room,
-                    task.name
-                )
-                if not intended_members:
-                    intended_members = [task.user]
-
             missing = [m for m in intended_members if m not in selected_members]
             n_intended = len(intended_members)
             n_selected = len(selected_members)

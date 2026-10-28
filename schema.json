@@ -48,6 +48,10 @@
                       "type": "string"
                     },
 
+                    "right": {
+                      "type": "boolean"
+                    },
+
                     "days": {
                       "type": "array",
                       "items": {
@@ -169,26 +173,6 @@
       }
     },
 
-    "indefinite_tasks": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "users": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "repetitions": {
-            "type": "integer",
-            "minimum": 1
-          }
-        },
-        "required": ["users", "repetitions"]
-      }
-    },
-
     "location": {
       "type": "object",
       "properties": {
@@ -205,7 +189,6 @@
 
   "required": [
     "rooms",
-    "indefinite_tasks",
     "location"
   ]
 }

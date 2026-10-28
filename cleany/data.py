@@ -23,7 +23,7 @@ class _Task:
         return self.due_date < other.due_date
 
 
-def new_task(user, room, name, due_date, period):
+def new_task(user, room, name, right, due_date, period):
     """
     Create a new task
 
@@ -37,6 +37,7 @@ def new_task(user, room, name, due_date, period):
     task.user = user
     task.room = room
     task.name = name
+    task.right = right
     task.due_date = due_date
     task.period = period
     return task
