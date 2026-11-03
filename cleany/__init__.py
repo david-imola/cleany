@@ -10,6 +10,7 @@ import bisect
 import socket
 from datetime import datetime, timedelta
 from fractions import Fraction
+import logging
 
 import yaml
 
@@ -203,7 +204,9 @@ class TaskManager(QWidget):
                 f"{temp}°C; {cond}\nHostname: {host}"
             )
         except Exception as e:
-            self.weather_label.setText(str(e))
+            self.weather_label.setText("weather error")
+            logging.error(e)
+            
 
     def _normalize_user_groups(self, users_def):
         out = []
